@@ -40,11 +40,16 @@ impl CPU {
             self.status = self.status & 0b1111_1101;
         }
 
-        if (result & 0b1000_0000) != 0 {
+        if result & 0b1000_0000 != 0 {
             self.status = self.status | 0b1000_0000;
         } else {
             self.status = self.status & 0b0111_1111;
         }
+    }
+
+    fn inx(&mut self) {
+        self.register_x = self.register_x.wrapping_add(1);
+        self.update_zero_and_negative_flags(self.register_x);
     }
 
     // selfはCPUインスタンス
@@ -65,12 +70,14 @@ impl CPU {
 
                     self.lda(param);
                 }
-                0x00 => {
-                    // テストを通すため仮
-                    return;
-                }
                 0xAA => {
                     self.tax();
+                }
+                0xe8 => {
+                    self.inx();
+                }
+                0x00 => {
+                    return;
                 }
 
                 // 上記のどれにも当てはまらない場合の処理
@@ -109,5 +116,22 @@ mod test {
         cpu.interpret(vec![0xaa, 0x00]);
 
         assert_eq!(cpu.register_x, 10);
+    }
+
+    #[test]
+    fn test_5_ops_working_together() {
+        let mut cpu = CPU::new();
+        cpu.interpret(vec![0xa9, 0xc0, 0xaa, 0xe8, 0x00]);
+
+        assert_eq!(cpu.register_x, 0xc1)
+    }
+
+    #[test]
+    fn test_inx_overflow() {
+        let mut cpu = CPU::new();
+        cpu.register_x = 0xff;
+        cpu.interpret(vec![0xe8, 0xe8, 0x00]);
+
+        assert_eq!(cpu.register_x, 1)
     }
 }
